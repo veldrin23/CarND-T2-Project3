@@ -75,7 +75,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			particles[i].y = particles[i].y + velocity/yaw_rate *
 						(cos(particles[i].theta) - cos(particles[i].theta+yaw_rate*delta_t));
 			particles[i].theta = particles[i].theta + yaw_rate*delta_t;
-		} else {  // (yaw rate == 0 or veleeelllly velly close to)
+		} else {  
+			// (yaw rate == 0 or veleeelllly velly close to)
 			particles[i].x = particles[i].x + velocity*delta_t*cos(particles[i].theta);
 			particles[i].y = particles[i].y + velocity*delta_t*sin(particles[i].theta);
 			particles[i].theta = theta_gaus(gen);
@@ -89,6 +90,29 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
+	for(int i = 0; i < observations.size(), ++i) {
+
+		double c_dist = 0.0f; // current measurement
+		double m_dist = 0.0f; // min measurement
+		int m_dist_ind = 0; // index of min measurement 
+
+		// from heler_functions.h: dist(double x1, double y1, double x2, double y2) 
+		for(int j = 0; i < predicted.size(), ++j) {
+
+			dist_c = dist(observations[i].x, observations[i].y,
+				predicted[j].x, predicted[j].y);
+}
+			if(j == 0) {
+				dist_m = dist_c;
+				}
+			else {
+				if(dist_c < dist_m) dist_m = dist_c;
+			}
+
+	observations[i].id = m_dist_ind;
+	}
+
+
 
 }
 
