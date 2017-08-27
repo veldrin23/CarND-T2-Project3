@@ -57,8 +57,32 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
+	for (int i = 0; i < num_particles, ++i) {
 
-}
+		std::default_random_engine gen;
+		std::normal_distribution<double> x_gaus(x, std[0]);
+		std::normal_distribution<double> y_gaus(y, std[1]);
+		std::normal_distribution<double> theta_gaus(theta, std[2]);
+
+		particles[i].x = x_gaus(gen);
+		particles[i].y = y_gaus(gen);
+
+
+		if (fabs(yaw_rate) > 1e-6) {
+			// yaw rate != 0 
+			particles[i].x = particles[i].x + velocity/yaw_rate *
+						(sin(particles[i].theta+yaw_rate*delta_t) - sin(particles[i].theta));
+			particles[i].y = particles[i].y + velocity/yaw_rate *
+						(cos(particles[i].theta) - cos(particles[i].theta+yaw_rate*delta_t));
+			particles[i].theta = particles[i].theta + yaw_rate*delta_t;
+		} else {  // (yaw rate == 0 or veleeelllly velly close to)
+			particles[i].x = particles[i].x + velocity*delta_t*cos(particles[i].theta);
+			particles[i].y = particles[i].y + velocity*delta_t*sin(particles[i].theta);
+			particles[i].theta = theta_gaus(gen);
+		}
+	}
+} 
+
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
