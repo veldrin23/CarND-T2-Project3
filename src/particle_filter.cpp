@@ -35,19 +35,19 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 
 	// create particles
-	for (int i = 0, i < num_particles, ++i) 
+	for (int i = 0; i < num_particles; ++i) 
 	{
 		Particle p;
 		p.id = i;
 		p.weight = 1;
 		p.x = x_gaus(gen);
 		p.y = y_gaus(gen);
-		p.theta = theta_gaus(gen):
+		p.theta = theta_gaus(gen);
 
 		particles.push_back(p);
 	}
 
-	weight.resize(num_particles);
+	weights.resize(num_particles);
 	is_initialized = true;
 
 }
@@ -57,12 +57,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-	for (int i = 0; i < num_particles, ++i) {
+	for (int i = 0; i < num_particles; ++i) {
 
 		std::default_random_engine gen;
-		std::normal_distribution<double> x_gaus(x, std[0]);
-		std::normal_distribution<double> y_gaus(y, std[1]);
-		std::normal_distribution<double> theta_gaus(theta, std[2]);
+		std::normal_distribution<double> x_gaus(particles[i].x, std_pos[0]);
+		std::normal_distribution<double> y_gaus(particles[i].y, std_pos[1]);
+		std::normal_distribution<double> theta_gaus(particles[i].theta, std_pos[2]);
 
 		particles[i].x = x_gaus(gen);
 		particles[i].y = y_gaus(gen);
@@ -90,25 +90,26 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
-	for(int i = 0; i < observations.size(), ++i) {
+	for(int i = 0; i < observations.size(); ++i) {
 
 		double c_dist = 0.0f; // current measurement
 		double m_dist = 0.0f; // min measurement
 		int m_dist_ind = 0; // index of min measurement 
 
 		// from heler_functions.h: dist(double x1, double y1, double x2, double y2) 
-		for(int j = 0; i < predicted.size(), ++j) {
+		for(int j = 0; i < predicted.size(); ++j) {
 
-			dist_c = dist(observations[i].x, observations[i].y,
+			c_dist = dist(observations[i].x, observations[i].y,
 				predicted[j].x, predicted[j].y);
-}
+
 			if(j == 0) {
-				dist_m = dist_c;
+				m_dist = c_dist;
 				}
 			else {
-				if(dist_c < dist_m) dist_m = dist_c;
+				if(c_dist < m_dist) m_dist = c_dist;
 			}
 
+}
 	observations[i].id = m_dist_ind;
 	}
 
@@ -128,13 +129,64 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	std::vector<LandmarkObs> trans_observations(observations.size());
+	std::vector<LandmarkObs> landmark_observations(map_landmarks.landmark_list.size());
+
+	for (int i = 0; i < landmark_observations.size(); ++i) 
+	{
+		landmark_observations[i].id = 0;
+		landmark_observations[i].x = map_landmarks.landmark_list[i].x_f;
+		landmark_observations[i].y = map_landmarks.landmark_list[i].y_f;
+	}
+
+
+	double p_x, p_y, l_x, l_y, norm_x, norm_y, new_w, denom;
+
+	// translate from vehicle's coordinates to map coordinates
+	for (int i = 0; i < particles.size(); ++i) 
+	{
+		p_x = particles[i].x;
+		p_y = particles[i].y;
+		for(int j = 0; j < observations.size(); ++j)
+		{
+			trans_observations[j].x = observations[j].x*cos(particles[i].theta) - observations[i].y*sin(particles[i].theta) + p_x;
+			trans_observations[j].y = observations[j].x*sin(particles[i].theta) + observations[i].y*cos(particles[i].theta) + p_y;
+		}
+			double new_weight = 1.0f;
+	for(auto& trans: trans_observations)
+	{
+		l_x = landmark_observations[trans.id].x;
+		l_y = landmark_observations[trans.id].y;
+
+		denom = 1.0/(2.0*M_PI*std_landmark[0]*std_landmark[1]);
+		norm_x = (pow(trans.x-l_x, 2)) / (2*pow(std_landmark[0],2)); 
+		norm_y = (pow(trans.y-l_y, 2)) / (2*pow(std_landmark[1],2));
+		new_w = denom * exp(-1*(norm_x + norm_y));
+		new_weight *= new_w;
+	}
+	particles[i].weight = new_weight;
+	weights[i] = new_weight;
+	}
 }
 
 void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+	std::vector<Particle> new_particles;
+	std::default_random_engine gen;
+	std::discrete_distribution<> dist(weights.begin(), weights.end());
 
+	int new_index;
+
+	for(int i = 0; i < num_particles; ++i) 
+	{
+		new_index = dist(gen);
+		new_particles.push_back(particles[new_index]);
+
+	}
+	particles = new_particles;
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
